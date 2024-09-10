@@ -1,3 +1,3 @@
 import connectDB from './db.js';
-
-export { connectDB};
+import logger from './logger.js';
+export { connectDB, logger };
