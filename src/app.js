@@ -1,8 +1,12 @@
 import express from "express";
 import { logger } from "./config/index.js";
-
+import bodyparser from "body-parser";
 const app = express();
+
 app.use(express.json());
+app.use(bodyparser.json());
+app.use(bodyparser.urlencoded({ extended: true }));
+
 
 app.use((req, res, next) => {
   logger.info(`Received request: ${req.method} ${req.url}`);
