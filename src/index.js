@@ -1,6 +1,7 @@
 import env from "dotenv";
 import app from "./app.js";
-import { connectDB,logger } from "./config/index.js";
+import { connectDB} from "./config/index.js";
+import logger from "./utils/logger.js";
 
 env.config();
 
