@@ -1,37 +1,29 @@
 import logger from "../utils/logger.js";
 import { User } from "../models/index.js";
-import { generateToken} from "../middlewares/jwt.js";
-import bcrypt from "bcrypt";
+import { generateToken } from "../middlewares/jwt.js";
+import { comparePassword } from "../middlewares/hashingPassword.js";
+// import bcrypt from "bcrypt";
 
 const signup = async (req, res) => {
-  const {
-    name,
-    email,
-    age,
-    mobile,
-    address,
-    aadhar,
-    role,
-    password,
-  } = req.body;
+  const { name, email, age, mobile, address, aadhar, role, password } =
+    req.body;
 
   try {
     const user = new User({
-    name,
-    email,
-    age,
-    mobile,
-    address,
-    aadhar,
-    role,
-    password
+      name,
+      email,
+      age,
+      mobile,
+      address,
+      aadhar,
+      role,
+      password,
     });
 
     const savedUser = await user.save();
 
     const payload = {
       id: savedUser.id,
-      username: savedUser.aadhar,
     };
 
     logger.info(`New user registered: ${name}`);
@@ -55,62 +47,68 @@ const signup = async (req, res) => {
   }
 };
 
+const login = async (req, res) => {
+  const { aadhar } = req.body;
+  const user = req.user;
+  logger.info(`Login successful for username: ${aadhar}`);
 
-const login =  async(req,res)=>{
-    const {username,password} = req.body;
-    logger.info(`Login attempt for username: ${username}`);
+  try {
+    const payload = {
+      id: user.id,
+    };
+    const token = generateToken(payload);
 
-    try{
-        const user = await User.findOne({ username: username });
-        
-        if(!user){
-            logger.warn(`User not found: ${username}`);
-            return res.status(401).json({
-                error: "User not found",
-            });
-        }
-        const isMatch = await bcrypt.compare(password, user.password);
-        if(!isMatch){
-            logger.warn(`Incorrect password for username: ${name}`);
-            return res.status(401).json({
-                error: "Incorrect password",
-            });
-        }
-        const payload = {
-            id: user.id,
-            username: user.username,
-        };
-        const token = generateToken(payload);
-        logger.info(`Login successful for username: ${name}`);
-        res.json({
-            success: true,
-            message: "Login successful",
-            token: token,
-        });
-    }
-    catch(err){
-        logger.error(`Login error: ${err.message}`);
-        res.status(401).json({
-            error: "Unauthorized",
-        });
-    }
-}
-
-
-
+    res.json({
+      success: true,
+      message: "Login successful",
+      token: token,
+    });
+  } catch (err) {
+    logger.error(`Login error: ${err.message}`);
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+  }
+};
 
 const getAllPersons = async (req, res) => {
   try {
-    const users = await User.find(); 
-    logger.info(`Fetched ${users.length} users`); 
-    res.json(users); 
+    const users = await User.find();
+    logger.info(`Fetched ${users.length} users`);
+    res.json(users);
   } catch (err) {
-    logger.error(`Error fetching users: ${err.message}`); 
+    logger.error(`Error fetching users: ${err.message}`);
     res.status(500).json({ message: err.message });
   }
 };
 
+const showProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json(user);
+  } catch (err) {
+    logger.error(`Error fetching user: ${err.message}`);
+    res.status(500).json({ message: err.message });
+  }
+};
 
+const changePassword = async (req, res) => {
+  const user = await User.findById(req.user.id);
+  const { oldPassword, newPassword } = req.body;
+  try {
+    if (user.password === oldPassword) {
+      user.password = newPassword;
+      await user.save();
+      logger.info(`Password changed for user: ${user.aadhar}`);
+      res.json({ message: "Password changed successfully" });
+    } else {
+      logger.warn(`Incorrect old password for user: ${user.aadhar}`);
+      res.status(400).json({ message: "Incorrect old password" });
+    }
+  } catch (err) {
+    logger.error(`Error changing password: ${err.message}`);
+    res.status(500).json({ message: err.message });
+  }
+};
 
-
-export { signup , login, getAllPersons };
+export { signup, login, getAllPersons, showProfile, changePassword };

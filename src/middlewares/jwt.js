@@ -27,7 +27,7 @@ const jwtAuthMiddleware = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Attach user information to the request object
     req.user = decoded;
-    logger.info(`Token verified for user: ${decoded.username}`);
+    logger.info("Token verified for user");
     next();
   } catch (err) {
     logger.error(`Token verification failed: ${err.message}`);
@@ -43,7 +43,7 @@ const generateToken = (userData) => {
     const token = jwt.sign(userData, process.env.JWT_SECRET, {
       expiresIn: 3600,
     });
-    logger.info(`Token generated for user: ${userData.username}`);
+    logger.info("Token generated for user");
     return token;
   } catch (err) {
     logger.error(`Token generation failed: ${err.message}`);
