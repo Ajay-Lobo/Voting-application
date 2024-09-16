@@ -1,7 +1,6 @@
 import logger from "../utils/logger.js";
 import { User } from "../models/index.js";
 import { generateToken } from "../middlewares/jwt.js";
-import { comparePassword } from "../middlewares/hashingPassword.js";
 // import bcrypt from "bcrypt";
 
 const signup = async (req, res) => {
@@ -9,6 +8,20 @@ const signup = async (req, res) => {
     req.body;
 
   try {
+    if (role === "admin") {
+      logger.info(`Admin signup attempt by: ${name}`);
+      const adminExists = await User.findOne({ role: "admin" });
+      if (adminExists) {
+        logger.warn(
+          `Admin creation failed: Admin already exists - ${adminExists.name}`
+        );
+        return res.status(400).json({
+          success: false,
+          message: "Admin already exists. Only one admin is allowed.",
+        });
+      }
+    }
+
     const user = new User({
       name,
       email,

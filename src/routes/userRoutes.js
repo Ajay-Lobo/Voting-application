@@ -7,7 +7,6 @@ const { signup, login, getAllPersons,showProfile,changePassword } = userControll
 
 const userRouter = express.Router();  
 
-// Define routes
 userRouter
   .post("/signup", hashPassword, signup)
   .post("/login",comparePassword, login)
