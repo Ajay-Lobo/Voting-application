@@ -4,17 +4,24 @@ import { generateToken } from "../middlewares/jwt.js";
 // import bcrypt from "bcrypt";
 
 const signup = async (req, res) => {
-  const { name, email, age, mobile, address, aadhar, role, password } =
-    req.body;
+  const { name, email, age, mobile, address, aadhar, role, password } = req.body;
 
   try {
+    // Check if Aadhar is already registered
+    const existingUser = await User.findOne({ aadhar });
+    if (existingUser) {
+      logger.warn(`Signup failed: Aadhar already registered - ${aadhar}`);
+      return res.status(400).json({
+        success: false,
+        message: "Aadhar number is already registered. Please login or use another Aadhar.",
+      });
+    }
+
     if (role === "admin") {
       logger.info(`Admin signup attempt by: ${name}`);
       const adminExists = await User.findOne({ role: "admin" });
       if (adminExists) {
-        logger.warn(
-          `Admin creation failed: Admin already exists - ${adminExists.name}`
-        );
+        logger.warn(`Admin creation failed: Admin already exists - ${adminExists.name}`);
         return res.status(400).json({
           success: false,
           message: "Admin already exists. Only one admin is allowed.",
@@ -22,6 +29,7 @@ const signup = async (req, res) => {
       }
     }
 
+    // Create new user
     const user = new User({
       name,
       email,
@@ -35,10 +43,7 @@ const signup = async (req, res) => {
 
     const savedUser = await user.save();
 
-    const payload = {
-      id: savedUser.id,
-    };
-
+    const payload = { id: savedUser.id };
     logger.info(`New user registered: ${name}`);
     const token = generateToken(payload);
 
@@ -49,9 +54,7 @@ const signup = async (req, res) => {
       token: token,
     });
   } catch (err) {
-    // Log error
     logger.error(`Signup error: ${err.message}`);
-
     res.status(400).json({
       success: false,
       message: "Validation failed or other error occurred.",
@@ -59,6 +62,7 @@ const signup = async (req, res) => {
     });
   }
 };
+
 
 const login = async (req, res) => {
   const { aadhar } = req.body;
