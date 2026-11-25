@@ -10,7 +10,7 @@ const userRouter = express.Router();
 userRouter
   .post("/signup", hashPassword, signup)
   .post("/login",comparePassword, login)
-  .get("/", getAllPersons)
+  .get("/", jwtAuthMiddleware, getAllPersons)
   .get("/profile", jwtAuthMiddleware, showProfile)
   .put("/profile/change-password", jwtAuthMiddleware, changePassword);
   
