@@ -4,7 +4,6 @@ import { Candidate, User } from "../models/index.js";
 const voteCandidate = async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  console.log(id, userId);
   try {
     // Find candidate by ID
     const candidate = await Candidate.findById(id);
@@ -26,15 +25,6 @@ const voteCandidate = async (req, res) => {
       });
     }
 
-    // Check if user has already voted
-    if (user.isVoted) {
-      logger.warn(`Vote failed - User already voted: ${userId}`);
-      return res.status(403).json({
-        success: false,
-        message: "User already voted",
-      });
-    }
-
     // Prevent admins from voting
     if (user.role === "admin") {
       logger.warn(`Vote failed - Admin cannot vote: ${userId}`);
@@ -44,14 +34,29 @@ const voteCandidate = async (req, res) => {
       });
     }
 
-    // Record the vote
-    candidate.votes.push({ user: userId });
-    candidate.voteCount += 1;
+    // Atomically claim the vote: only one concurrent request can flip isVoted
+    const claimed = await User.findOneAndUpdate(
+      { _id: userId, isVoted: false },
+      { isVoted: true }
+    );
+    if (!claimed) {
+      logger.warn(`Vote failed - User already voted: ${userId}`);
+      return res.status(403).json({
+        success: false,
+        message: "User already voted",
+      });
+    }
 
-    // Save candidate and update user vote status
-    await candidate.save();
-    user.isVoted = true;
-    await user.save();
+    try {
+      await Candidate.updateOne(
+        { _id: id },
+        { $push: { votes: { user: userId } }, $inc: { voteCount: 1 } }
+      );
+    } catch (err) {
+      // Give the voter their vote back if recording it failed
+      await User.updateOne({ _id: userId }, { isVoted: false });
+      throw err;
+    }
 
     logger.info(`Vote successful - User: ${userId}, Candidate: ${id}`);
     res.status(200).json({
@@ -63,7 +68,6 @@ const voteCandidate = async (req, res) => {
     res.status(400).json({
       success: false,
       message: "An error occurred while casting vote",
-      error: err.message,
     });
   }
 };
@@ -84,7 +88,6 @@ const voteCount = async (req, res) => {
     res.status(400).json({
       success: false,
       message: "Validation failed or other error occurred",
-      error: err.message,
     });
   }
 };

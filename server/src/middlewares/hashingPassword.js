@@ -1,55 +1,57 @@
 import bcrypt from "bcrypt";
 import logger from "../utils/logger.js";
-import { generateToken } from "../middlewares/jwt.js";
 import { User } from "../models/index.js";
 
+const MIN_PASSWORD_LENGTH = 8;
 
-const hashPassword = async(req,res,next) => {
-    const { password } = req.body;
-    try{
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password,salt);
-        req.body.password = hashedPassword;
-        next();
-    }catch(err){
-        logger.error(`Hashing password error: ${err.message}`);
-        res.status(400).json({
-            success: false,
-            message: "Hashing password failed.",
-            error: err.message,
-        });
-    }
-}
+const hashPassword = async (req, res, next) => {
+  const { password } = req.body;
+  if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({
+      success: false,
+      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+    });
+  }
+  try {
+    req.body.password = await bcrypt.hash(password, 10);
+    next();
+  } catch (err) {
+    logger.error(`Hashing password error: ${err.message}`);
+    res.status(400).json({
+      success: false,
+      message: "Hashing password failed.",
+    });
+  }
+};
 
+const comparePassword = async (req, res, next) => {
+  const { aadhar, password } = req.body;
 
-const comparePassword = async (req,res,next) => {
-    const { aadhar, password } = req.body;
-    try{
-        const user = await User.findOne({ aadhar: aadhar });
-        if (!user) {
-            logger.warn(`User not found: ${aadhar}`);
-            return res.status(401).json({
-                error: "User not found",
-            });
-        }
-        const validPassword = await bcrypt.compare(password,user.password);
-        if(!validPassword){
-            logger.warn(`Invalid password: ${aadhar}`);
-            return res.status(401).json({
-                error: "Invalid password",
-            });
-        }
-        req.user = user;
-        next();
+  // Reject non-primitive input so query operators (e.g. {"$gt": ""}) cannot reach MongoDB
+  if (
+    (typeof aadhar !== "string" && typeof aadhar !== "number") ||
+    typeof password !== "string"
+  ) {
+    return res.status(400).json({ error: "Invalid input" });
+  }
+
+  try {
+    const user = await User.findOne({ aadhar: Number(aadhar) });
+    // Same response for unknown user and wrong password, so accounts cannot be enumerated
+    const validPassword = user && (await bcrypt.compare(password, user.password));
+    if (!validPassword) {
+      logger.warn(`Failed login attempt: ${aadhar}`);
+      return res.status(401).json({ error: "Invalid credentials" });
     }
-    catch(err){
-        logger.error(`Compare password error: ${err.message}`);
-        res.status(400).json({
-            success: false,
-            message: "Compare password failed.",
-            error: err.message,
-        });
-    }
-}
+    req.user = user;
+    next();
+  } catch (err) {
+    logger.error(`Compare password error: ${err.message}`);
+    res.status(400).json({
+      success: false,
+      message: "Login failed.",
+    });
+  }
+};
 
 export { hashPassword, comparePassword };

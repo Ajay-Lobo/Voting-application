@@ -47,7 +47,6 @@ const addCandidate = async (req, res) => {
     res.status(400).json({
       success: false,
       message: "Validation failed or other error occurred.",
-      error: err.message,
     });
   }
 };
@@ -96,7 +95,6 @@ const updateCandidate = async (req, res) => {
     res.status(400).json({
       success: false,
       message: "Validation failed or other error occurred.",
-      error: err.message,
     });
   }
 };
@@ -139,7 +137,6 @@ const deleteCandidate = async (req, res) => {
     res.status(400).json({
       success: false,
       message: "Validation failed or other error occurred.",
-      error: err.message,
     });
   }
 };
@@ -160,7 +157,6 @@ const getCandidates = async (req, res) => {
     res.status(400).json({
       success: false,
       message: "An error occurred while retrieving candidates.",
-      error: err.message,
     });
   }
 };
